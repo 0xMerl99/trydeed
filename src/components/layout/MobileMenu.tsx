@@ -3,7 +3,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useEffect, useRef } from "react";
 import { CloseIcon, XIcon } from "@/components/ui/Icons";
-import { X_URL } from "@/lib/social";
+import { CA, X_URL } from "@/lib/social";
+import { CaChip } from "./CaChip";
 import { Logo } from "@/components/ui/Logo";
 import { HeaderSearch } from "./HeaderSearch";
 import { NAV } from "./nav";
@@ -63,6 +64,11 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
             );
           })}
         </nav>
+        <div className="mx-3 mb-3 flex flex-col gap-1.5 rounded-xl border border-line p-3">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">Contract address</span>
+          <span className="mono break-all text-xs normal-case" data-testid="ca-full">{CA}</span>
+          <CaChip className="inline-flex w-fit" />
+        </div>
         <a
           href={X_URL}
           target="_blank"

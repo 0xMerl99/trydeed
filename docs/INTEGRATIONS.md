@@ -100,5 +100,5 @@ Defaults chosen from your brief and the reference; each is a constant in one pla
 | Minimum starting bid | 0.01 SOL (reference) | `MIN_START_PRICE` |
 | Auction length | 10 minutes to 7 days | `MIN_AUCTION_SECS` / `MAX_AUCTION_SECS` |
 | Website field on launched coins | locked to `NEXT_PUBLIC_SITE_URL` (assumed `deed.fun`) | `.env` |
-| Header "X"/"CA" buttons | **X** link added (https://x.com/trydeedfun) in the header, mobile menu and footer, and as the share-card account; **CA** omitted: no Deed token exists | `src/lib/social.ts`, `components/layout/Header.tsx` |
+| Header "X"/"CA" buttons | **X** link added (https://x.com/trydeedfun) in the header, mobile menu and footer, and as the share-card account; **CA** button added (header, mobile menu, footer; copies `CyM2mqHxu3XN2MZcmJq3xLnobdtaV8At52EYmRUapump`, the DEED Pump.fun token: Token-2022, 6 decimals, 1B supply, no mint/freeze authority, verified on chain) | `src/lib/social.ts`, `components/layout/Header.tsx` |
 | Fee changes | rates are program constants: changing them means upgrading the program | `chain/programs/deed_fun/src/constants.rs` |

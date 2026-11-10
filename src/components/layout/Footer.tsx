@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { LogoMark, Wordmark } from "@/components/ui/Logo";
 import { XIcon } from "@/components/ui/Icons";
-import { X_URL } from "@/lib/social";
+import { CopyButton } from "@/components/ui/Explorer";
+import { CA, CA_PUMP_URL, X_URL } from "@/lib/social";
 import { NetworkTag } from "./NetworkGuard";
 import { AddressLink } from "@/components/ui/Explorer";
 import idl from "@/chain/idl/deed_fun.json";
@@ -36,6 +37,12 @@ export function Footer() {
           </a>
           <span className="text-ink"><NetworkTag /></span>
         </nav>
+      </div>
+      <div className="wrap flex flex-wrap items-center gap-x-3 gap-y-2 pb-4 text-[12px] text-soft" data-testid="footer-ca">
+        <b className="text-gold">CA</b>
+        <span className="mono break-all normal-case text-ink">{CA}</span>
+        <CopyButton value={CA} label="Copy CA" />
+        <a className={link} href={CA_PUMP_URL} target="_blank" rel="noopener noreferrer">pump.fun ↗</a>
       </div>
       <p className="wrap m-0 pb-6 text-[12px] text-soft">
         Every action is a Solana transaction that you sign. Auctions and OTC offers are enforced by the Deed program <AddressLink value={idl.address} chars={6} />, not by this website.

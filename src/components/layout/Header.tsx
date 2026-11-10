@@ -8,6 +8,7 @@ import { Logo } from "@/components/ui/Logo";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { useDeedWallet } from "@/components/wallet/DeedWallet";
 import { useNotifications } from "@/hooks/useNotifications";
+import { CaChip } from "./CaChip";
 import { HeaderSearch } from "./HeaderSearch";
 import { MobileMenu } from "./MobileMenu";
 import { NAV } from "./nav";
@@ -74,6 +75,7 @@ export function Header() {
           >
             <XIcon size={16} />
           </a>
+          <CaChip className="hidden w1280:inline-flex" />
           <ConnectButton />
           <button
             type="button"

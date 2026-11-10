@@ -22,7 +22,7 @@ upgraded to a Deed afterwards (verified on the local validator, including a coin
 | --- | --- | --- |
 | **Deed program** (`chain/`, Rust/Anchor 1.2) | Registry of Deeds, fee claims, auctions, OTC escrow. Program id `DUGCUEFnfSA2TBtzgx51hLmiwy6pYSuCPQBNwD2utRYz` (compiled in; keypair in `chain/keys/`, git-ignored). | Written and tested. **Not deployed anywhere by this repo**: you deploy it. |
 | **Pump.fun programs** | `pump` `6EF8rrec…`, `pump_fees` `pfeeUxB6…`, `pump_amm` `pAMMBay6…`, `mayhem` `MAyhSmzX…`. Addresses and instruction layouts are from Pump's own public docs / published IDLs and the official `@pump-fun/pump-sdk`, not guessed. | Real. Launch, fee locking, fee distribution and a buy were run against the **actual mainnet binaries** on a local validator. |
-| **Solana RPC** | Reads accounts/transactions, sends transactions. | You provide a dedicated endpoint. |
+| **Solana RPC** | Reads accounts/transactions, sends transactions. | You choose. `api.mainnet-beta.solana.com` answers 403 to browsers. **Free, no key, tested:** `https://solana-rpc.publicnode.com` (launching, network check, clock, balances, confirmations, activity all pass; it refuses `getProgramAccounts`, `getTokenLargestAccounts` and `getParsedTokenAccountsByOwner`). Fine until the Deed program is deployed; afterwards use a keyed RPC (Helius/QuickNode/Triton free tiers), because the auction, coin and OTC lists are built with `getProgramAccounts`. |
 | **IPFS pinning (Pinata)** | Stores each coin's image and the two metadata JSON files. The only server secret (`PINATA_JWT`). | You provide the key. |
 | **Wallet** | Phantom / Solflare / Wallet-Standard. Signs everything. | Standard adapter; not driven by a real extension in CI. |
 

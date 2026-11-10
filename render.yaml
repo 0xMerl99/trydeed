@@ -15,8 +15,8 @@ services:
         value: "22"
       - key: NEXT_PUBLIC_SOLANA_CLUSTER
         value: mainnet-beta
-      - key: NEXT_PUBLIC_SOLANA_RPC_URL     # a DEDICATED RPC (Helius, QuickNode, Triton...): the public endpoint blocks the app's queries
-        sync: false
+      - key: NEXT_PUBLIC_SOLANA_RPC_URL     # free, no key, browser-friendly (tested). Enough until the Deed program is deployed; then switch to a
+        value: https://solana-rpc.publicnode.com   # keyed RPC (e.g. Helius free tier) because PublicNode blocks getProgramAccounts. NOT api.mainnet-beta.solana.com (403).
       - key: NEXT_PUBLIC_SITE_URL           # your public URL, e.g. https://deed.onrender.com or your own domain
         sync: false
       - key: NEXT_PUBLIC_IPFS_GATEWAY

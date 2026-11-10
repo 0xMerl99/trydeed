@@ -3,7 +3,7 @@
 //
 //   node chain/scripts/initialize.mjs --rpc <url> --authority <keypair.json> --treasury <pubkey>
 //
-// The treasury must already exist and hold at least the rent-exempt minimum (0.00089 SOL): fund it first.
+// The treasury must already exist and hold at least the rent-exempt minimum (about 0.00065 SOL on mainnet today; this script reads it live): fund it first.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

@@ -15,7 +15,7 @@ Nothing in this repository deploys by itself or holds a key. These are the steps
 * Decide the **upgrade authority**. It can replace the program, and it is also the Deed `admin` (which can only change the
   fee treasury). For mainnet use a hardware wallet or a multisig (e.g. Squads), not a hot key.
 * Decide the **treasury**: the wallet that receives the 1 % auction fee and the 0.5 % OTC fee. It must already exist and hold
-  at least the rent-exempt minimum (0.00089 SOL), otherwise a small fee credit could fail and block a settlement.
+  at least the rent-exempt minimum (about 0.00065 SOL at today's mainnet rent; it is read live, never hard-coded), otherwise a small fee credit could fail and block a settlement.
 
 ## 1. Devnet (do this first)
 
@@ -38,19 +38,21 @@ bash chain/scripts/deploy.sh --cluster mainnet-beta --authority /path/to/authori
 node chain/scripts/initialize.mjs --rpc https://your-dedicated-rpc --authority /path/to/authority.json --treasury <treasury-pubkey>
 ```
 
-Cost for the current 468 KB binary (rent is refundable only by closing the program, which burns its address for good):
+Cost for the current 468 KB binary. Measured on mainnet's live rent (5,080 lamports per byte for a one-year exemption); rent
+is refundable only by closing the program, which burns its address for good:
 
 | Item | SOL |
 | --- | --- |
-| Program data account (default reserves 2 × the binary so it can grow on upgrade) | **≈ 6.52** |
+| Program data account (default reserves 2 × the binary so it can grow on upgrade) | **≈ 4.76** |
 | Program account | ≈ 0.001 |
-| Upload buffer: needs to be in the wallet while uploading, returned when the deploy finishes | ≈ 3.26 (temporary) |
+| Upload buffer: needs to be in the wallet while uploading, returned when the deploy finishes | ≈ 2.38 (temporary) |
 | Network fees (a few hundred small write transactions + priority fee) | < 0.02 |
-| `initialize` (config account) + funding the treasury's rent floor | ≈ 0.003 |
+| `initialize` (config account) + funding the treasury's rent floor | ≈ 0.002 |
 
-So keep about **10 SOL** in the deploying wallet; about **6.5 SOL** is spent for good-as-rent. To cut it roughly in half,
-deploy with `--max-len 468080` (no room to grow: a larger binary later would need a new program address). The script
-prints the exact figure for your RPC before asking you to confirm.
+So keep about **7.2 SOL** in the deploying wallet; about **4.8 SOL** of it is spent as rent. To cut that in half, deploy with
+`--max-len 468080` (≈ 2.4 SOL spent, ≈ 4.8 SOL needed at the peak; no room to grow: a larger binary later would need a new
+program address). Rent rates are set by the network and can change, so the script prints the exact figure for your RPC
+before asking you to confirm.
 
 ## 3. After deploying
 

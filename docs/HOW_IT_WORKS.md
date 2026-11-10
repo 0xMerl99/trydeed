@@ -77,7 +77,7 @@ What is for sale is **the fee rights, not the coin's token supply**. The app rep
 | # | Transaction | Why |
 | --- | --- | --- |
 | 1 | **Pump.fun `create_v2`** | Creates the coin. Pump creates the mint and the bonding curve; you are the creator. |
-| 2 | **Pump fee sharing** (`create_fee_sharing_config` + `update_fee_shares_v2`) + a small transfer to the vault | Sets the coin's fee split to **one shareholder, the Deed vault, at 100 %**. Updating the shares revokes the creator's admin authority in the same step, so the split can **never change again**. The transfer pre-funds the vault with the rent-exempt minimum (0.00089 SOL) so Pump's first payout always lands. |
+| 2 | **Pump fee sharing** (`create_fee_sharing_config` + `update_fee_shares_v2`) + a small transfer to the vault | Sets the coin's fee split to **one shareholder, the Deed vault, at 100 %**. Updating the shares revokes the creator's admin authority in the same step, so the split can **never change again**. The transfer pre-funds the vault with the rent-exempt minimum (about 0.00065 SOL on mainnet today) so Pump's first payout always lands. |
 | 3 | **Mint the Deed** | Creates a Token-2022 mint with on-mint metadata, mints exactly one token to you, then **permanently revokes** the mint authority. The metadata is made immutable. |
 | 4 | **`register_deed`** (Deed program) | The program **verifies** (from Pump's and the token program's own account data) that the fee split is locked to the vault, that you are the coin's creator, and that the Deed is a true 1/1. Only then does it record the coin ↔ Deed link. |
 

@@ -1,19 +1,25 @@
 /**
- * Launching a coin with its Deed: four real transactions, each one a wallet prompt.
+ * Launching a coin. Two modes:
  *
- *   1. Pump.fun `create_v2`            – the coin itself (the wallet is the creator; Pump's program creates the mint).
- *   2. Pump Fees fee-sharing           – `create_fee_sharing_config` + `update_fee_shares_v2` with ONE shareholder: the
- *                                         Deed vault PDA at 100 %. Updating shares revokes the admin authority in the same
- *                                         step, so the split can never change again. The vault is pre-funded with the
- *                                         rent-exempt minimum so Pump's first payout always lands.
- *   3. The Deed                        – a Token-2022 mint (metadata pointer + on-mint metadata), 1 token minted to the
- *                                         creator, mint authority revoked. Created by the creator's wallet, not by us.
- *   4. `register_deed`                 – the Deed program VERIFIES steps 2-3 from Pump's and the token program's own
- *                                         account data, then records the link. It cannot be tricked into registering a
- *                                         coin whose fees are not locked to the vault.
+ *  - **"pump"** (works on any network, needs nothing of ours): ONE transaction, Pump.fun `create_v2`. The wallet is the coin's
+ *    creator and earns its creator fees directly, exactly as on pump.fun. No Deed exists yet. The coin is remembered on this
+ *    device so it can be upgraded later.
+ *  - **"deed"** (needs the Deed program deployed and initialised): four real transactions, each one a wallet prompt.
  *
- * Every step checks the chain first, so a launch that was interrupted (closed tab, rejected prompt, dropped
- * connection) resumes where it stopped instead of repeating anything.
+ *      1. Pump.fun `create_v2`   – the coin itself (skipped when upgrading a coin that already exists).
+ *      2. Pump Fees fee-sharing  – `create_fee_sharing_config` + `update_fee_shares_v2` with ONE shareholder: the Deed vault PDA
+ *                                  at 100 %. Updating shares revokes the admin authority in the same step, so the split can
+ *                                  never change again. The vault is pre-funded with the rent-exempt minimum so Pump's first
+ *                                  payout always lands. Fees the curve still holds are swept to the creator first.
+ *      3. The Deed               – a Token-2022 mint (metadata pointer + on-mint metadata), 1 token minted to the creator,
+ *                                  mint authority revoked. Created by the creator's wallet, not by us.
+ *      4. `register_deed`        – the Deed program VERIFIES steps 2-3 from Pump's and the token program's own account data,
+ *                                  then records the link. It cannot be tricked into registering a coin whose fees are not
+ *                                  locked to the vault.
+ *
+ * Every step checks the chain first, so a launch that was interrupted (closed tab, rejected prompt, dropped connection)
+ * resumes where it stopped instead of repeating anything. A pump-mode coin is upgraded by calling `launch` again in "deed"
+ * mode with `resume: <coin mint>`.
  */
 import {
   AuthorityType,
@@ -33,9 +39,11 @@ import {
 } from "@solana/spl-token-metadata";
 import { ComputeBudgetProgram, Keypair, PublicKey, SystemProgram, Transaction, type TransactionInstruction } from "@solana/web3.js";
 import { config } from "@/lib/config";
-import { lsGetJson, lsRemove, lsSetJson } from "@/lib/storage";
+import { DeedRuleError } from "@/lib/errors";
+import { lsGetJson, lsSetJson } from "@/lib/storage";
 import type { LaunchInput, TxContext } from "@/services/types";
-import { PROGRAM_ID, TOKEN_2022_PROGRAM_ID, ata, deedStatePda, ix, vaultPda, SYSTEM_PROGRAM } from "./program";
+import { bondingCurvePda, decodeCurve } from "./pump";
+import { PROGRAM_ID, TOKEN_2022_PROGRAM_ID, ata, configPda, deedStatePda, ix, vaultPda, SYSTEM_PROGRAM } from "./program";
 
 export interface UploadedMetadata {
   /** Metadata JSON of the coin (stored in Pump's token metadata). */
@@ -59,16 +67,25 @@ export const defaultDeps: LaunchDeps = {
   },
 };
 
-interface Pending {
+/** A coin this device launched that does not have a finished Deed yet (addresses only: never keys). */
+export interface PendingLaunch {
   coinMint: string;
   uri: string;
   deedUri: string;
   deedMint?: string;
   name: string;
   symbol: string;
+  createdAt: number;
 }
-const pendingKey = (wallet: string) => `deed.launch.${wallet}`;
-export const loadPendingLaunch = (wallet: string) => lsGetJson<Pending | null>(pendingKey(wallet), null);
+const pendingKey = (wallet: string) => `deed.launches.${wallet}`;
+export const loadPendingLaunches = (wallet: string): PendingLaunch[] => lsGetJson<PendingLaunch[]>(pendingKey(wallet), []);
+function savePending(wallet: string, p: PendingLaunch) {
+  const rest = loadPendingLaunches(wallet).filter((x) => x.coinMint !== p.coinMint);
+  lsSetJson(pendingKey(wallet), [p, ...rest]);
+}
+function removePending(wallet: string, coinMint: string) {
+  lsSetJson(pendingKey(wallet), loadPendingLaunches(wallet).filter((x) => x.coinMint !== coinMint));
+}
 
 const budget = (units: number): TransactionInstruction[] => [
   ComputeBudgetProgram.setComputeUnitLimit({ units }),
@@ -79,14 +96,38 @@ export const TOTAL_STEPS = 4;
 
 export interface LaunchOutcome {
   coinMint: string;
-  deedMint: string;
+  /** `null` for a pump-mode launch: there is no Deed yet. */
+  deedMint: string | null;
   signatures: string[];
+}
+
+export type ProgramReadiness = { ready: true } | { ready: false; code: "NOT_DEPLOYED" | "NOT_INITIALISED"; message: string };
+
+/** Is the Deed program deployed AND initialised on this network? (Two plain account reads.) */
+export async function programReadiness(conn: TxContext["connection"]): Promise<ProgramReadiness> {
+  const [program, cfg] = await Promise.all([conn.getAccountInfo(PROGRAM_ID), conn.getAccountInfo(configPda())]);
+  if (!program?.executable) return { ready: false, code: "NOT_DEPLOYED", message: "The Deed program is not deployed on this network yet." };
+  if (!cfg) return { ready: false, code: "NOT_INITIALISED", message: "The Deed program is deployed but not initialised on this network yet." };
+  return { ready: true };
+}
+
+/**
+ * Refuses a "deed" launch unless the program is ready. This matters: step 2 locks the coin's creator fees, irrevocably, to a
+ * vault that only the Deed program can pay out. Without the program those fees would be stuck, so nothing may be sent (not even
+ * step 1) until the program is really there.
+ */
+export async function assertProgramReady(conn: TxContext["connection"]): Promise<void> {
+  const r = await programReadiness(conn);
+  if (!r.ready) throw new DeedRuleError(r.code, `${r.message} Launching a Deed is disabled; nothing was created and nothing was spent.`);
 }
 
 export async function launch(ctx: TxContext, input: LaunchInput, deps: LaunchDeps = defaultDeps): Promise<LaunchOutcome> {
   const conn = ctx.connection;
+  const mode = input.mode ?? "deed";
+  if (mode === "deed") await assertProgramReady(conn); // before ANY transaction, including the Pump coin creation
   const wallet = new PublicKey(ctx.wallet);
-  const step = (index: number, label: string) => input.onStep?.({ index, total: TOTAL_STEPS, label });
+  const total = mode === "pump" ? 1 : TOTAL_STEPS;
+  const step = (index: number, label: string) => input.onStep?.({ index, total, label });
   const signatures: string[] = [];
   const { PUMP_SDK, feeSharingConfigPda } = await import("@pump-fun/pump-sdk");
   const { NATIVE_MINT, TOKEN_PROGRAM_ID } = await import("@solana/spl-token");
@@ -95,12 +136,13 @@ export async function launch(ctx: TxContext, input: LaunchInput, deps: LaunchDep
   const symbol = input.ticker.trim();
 
   // ---------------------------------------------------------------- 1. the coin
-  let pending = loadPendingLaunch(ctx.wallet);
-  if (pending && (await conn.getAccountInfo(new PublicKey(pending.coinMint))) === null && pending.deedMint === undefined) {
-    // the coin was never created (a prompt was rejected before it landed): start over with a fresh mint
-    pending = null;
-  }
-  if (!pending) {
+  let pending: PendingLaunch | null = null;
+  if (input.resume) {
+    // Upgrading / resuming a specific coin. A new launch never silently resumes an old one.
+    pending = loadPendingLaunches(ctx.wallet).find((p) => p.coinMint === input.resume) ?? null;
+    if (!pending) throw new DeedRuleError("NO_PENDING", "That launch is not pending on this device any more.");
+    if ((await conn.getAccountInfo(new PublicKey(pending.coinMint))) === null) throw new DeedRuleError("NO_COIN", "That coin does not exist on this network.");
+  } else {
     step(1, "Creating your coin on Pump.fun");
     const coinKp = Keypair.generate();
     const meta = await deps.upload({ coinMint: coinKp.publicKey.toBase58(), name, symbol, description: input.description, image: input.image, twitter: input.twitter, telegram: input.telegram });
@@ -114,10 +156,11 @@ export async function launch(ctx: TxContext, input: LaunchInput, deps: LaunchDep
       mayhemMode: false,
     });
     signatures.push(await ctx.send(new Transaction().add(...budget(400_000), create), { signers: [coinKp] }));
-    pending = { coinMint: coinKp.publicKey.toBase58(), uri: meta.uri, deedUri: meta.deedUri, name, symbol };
-    lsSetJson(pendingKey(ctx.wallet), pending);
+    pending = { coinMint: coinKp.publicKey.toBase58(), uri: meta.uri, deedUri: meta.deedUri, name, symbol, createdAt: Math.floor(Date.now() / 1000) };
+    savePending(ctx.wallet, pending);
   }
   const coinMint = new PublicKey(pending.coinMint);
+  if (mode === "pump") return { coinMint: coinMint.toBase58(), deedMint: null, signatures };
   const vault = vaultPda(coinMint);
 
   // ---------------------------------------------------------------- 2. lock the creator fees to the Deed vault
@@ -129,6 +172,16 @@ export async function launch(ctx: TxContext, input: LaunchInput, deps: LaunchDep
   const vaultLamports = (await conn.getBalance(vault)) ?? 0;
   if (!locked) {
     step(2, "Locking the creator fees to your Deed");
+    // A coin that has already traded holds creator fees on its curve. Pump refuses to create or change the fee split until they are
+    // swept to the current creator (error 6095), so sweep first. Those fees are yours: you collect them on Pump.fun.
+    if (!sharing) {
+      const curve = await conn.getAccountInfo(bondingCurvePda(coinMint));
+      const unswept = curve ? (decodeCurve(curve.data)?.creatorFeeUnswept ?? 0n) : 0n;
+      if (unswept > 0n) {
+        const sweep = await PUMP_SDK.sweepCreatorFeeInstruction({ payer: wallet, mint: coinMint, creator: wallet, quoteMint: NATIVE_MINT, quoteTokenProgram: TOKEN_PROGRAM_ID });
+        signatures.push(await ctx.send(new Transaction().add(...budget(250_000), sweep)));
+      }
+    }
     const ixs: TransactionInstruction[] = [...budget(300_000)];
     if (vaultLamports < rent0) ixs.push(SystemProgram.transfer({ fromPubkey: wallet, toPubkey: vault, lamports: rent0 - vaultLamports }));
     if (!sharing) ixs.push(await PUMP_SDK.createFeeSharingConfig({ creator: wallet, mint: coinMint, pool: null }));
@@ -155,7 +208,7 @@ export async function launch(ctx: TxContext, input: LaunchInput, deps: LaunchDep
     step(3, "Minting your Deed");
     const kp = Keypair.generate();
     deedMint = kp.publicKey;
-    const deedName = `Deed: ${name}`.slice(0, 32);
+    const deedName = `Deed: ${pending.name}`.slice(0, 32);
     const metadata = { mint: deedMint, name: deedName, symbol: "DEED", uri: pending.deedUri, additionalMetadata: [["coin", coinMint.toBase58()]] as [string, string][] };
     const mintLen = getMintLen([ExtensionType.MetadataPointer]);
     const metadataLen = 4 + packMetadata({ ...metadata, updateAuthority: wallet }).length;
@@ -178,7 +231,7 @@ export async function launch(ctx: TxContext, input: LaunchInput, deps: LaunchDep
     );
     signatures.push(await ctx.send(tx, { signers: [kp] }));
     pending = { ...pending, deedMint: deedMint.toBase58() };
-    lsSetJson(pendingKey(ctx.wallet), pending);
+    savePending(ctx.wallet, pending);
   }
 
   // ---------------------------------------------------------------- 4. register
@@ -202,7 +255,6 @@ export async function launch(ctx: TxContext, input: LaunchInput, deps: LaunchDep
     );
     signatures.push(await ctx.send(new Transaction().add(...budget(150_000), register)));
   }
-  lsRemove(pendingKey(ctx.wallet));
-  void PROGRAM_ID;
+  removePending(ctx.wallet, coinMint.toBase58());
   return { coinMint: coinMint.toBase58(), deedMint: deedMint.toBase58(), signatures };
 }

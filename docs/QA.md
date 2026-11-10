@@ -9,9 +9,9 @@ layers; each one is reproducible with the command shown.
 | --- | --- | --- | --- |
 | Rust unit tests | auction/OTC math, Pump `SharingConfig` parser, Token-2022 extension screening | `bash chain/scripts/build.sh unit` | **8 / 8** |
 | Program integration (LiteSVM, the compiled SBF binary, real SPL Token / Token-2022 / Associated Token programs) | every instruction and every rule, with attacker cases | `bash chain/scripts/build.sh test` | **16 / 16** |
-| Local-validator e2e: **real Pump.fun programs** + the Deed program + the app's service layer | launch → fee lock → real Pump buy → sweep + distribute → claim; auctions, anti-sniping, settlement; OTC | `npm run test:e2e` | **14 / 14** (service) |
-| Browser e2e: the real app in Edge, a flagged test wallet signing real transactions | the screens: launch form → four transactions → Deed in the wallet; Portfolio claim; bid rules, outbid refund, settle | `npm run test:e2e` (`chain/e2e/ui.e2e.test.ts`) **4 / 4** |
-| TypeScript / unit | `tsc --noEmit`; auction rules, SOL precision, **parity with the program's vectors** | `npm run typecheck`, `npm test` | clean / **39 / 39** |
+| Local-validator e2e: **real Pump.fun programs** + the Deed program + the app's service layer | launch → fee lock → real Pump buy → sweep + distribute → claim; auctions, anti-sniping, settlement; OTC; Pump-only launch, then upgrade to a Deed after it has traded | `npm run test:e2e` | **15 / 15** (launch + service) |
+| Browser e2e: the real app in Edge, a flagged test wallet signing real transactions | launch form → four transactions → Deed in the wallet; Portfolio claim; bid rules, outbid refund, settle; launch with no Deed program on the network; no-simulation crawl | `npm run test:e2e` (`chain/e2e/ui.e2e.test.ts`) | **5 / 5** |
+| TypeScript / unit | `tsc --noEmit`; auction rules, SOL precision, **parity with the program's vectors**, launch guards | `npm run typecheck`, `npm test` | clean / **50 / 50** |
 
 ### What the program tests cover (`chain/programs/deed_fun/tests/deed.rs`)
 
@@ -65,6 +65,7 @@ every outcome on chain:
 * **Bidding:** the bid box blocks a below-minimum bid inline and disables the button; a bid through the confirm dialog
   escrows SOL and the page says "You hold the highest bid"; a rival outbids and the wallet is refunded in that same
   transaction; after the on-chain end time the UI user presses *Settle Auction* and the auction becomes `Settled`.
+* **Launch with no Deed program:** the page is told the Deed program does not exist (one RPC answer replaced; everything else, including the launch transaction, goes to the real validator). It shows the Pump.fun-only notice and the *LAUNCH ON PUMP.FUN* button, sends ONE transaction, the real coin exists on chain, no Deed state exists, and the coin is listed on the Launch page as waiting for its Deed.
 * **No-simulation crawl:** twelve pages (app and docs) contain no simulated data, tags, tools or modes.
 
 ## Visual comparison with tryauction.fun (Phase 14)

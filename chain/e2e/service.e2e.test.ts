@@ -7,12 +7,14 @@
 import { createMint, getAssociatedTokenAddressSync, getOrCreateAssociatedTokenAccount, mintTo, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import { ComputeBudgetProgram, Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
-import { OnlinePumpSdk, PUMP_SDK, getBuyV3TokenAmountFromQuoteAmount } from "@pump-fun/pump-sdk";
-import { beforeAll, describe, expect, it } from "vitest";
+import { OnlinePumpSdk, PUMP_SDK, feeSharingConfigPda, getBuyV3TokenAmountFromQuoteAmount } from "@pump-fun/pump-sdk";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { conn, ctxFor, ensureInitialised, logsOf, sendIxs, sleep, wallet } from "./helpers";
 import { eventsFromLogs } from "@/chain/events";
 import { LiveDeedService } from "@/services/live";
 import * as w from "@/chain/writes";
+import { loadPendingLaunches } from "@/chain/launch";
+import { deedStatePda } from "@/chain/program";
 import { friendlyError } from "@/lib/errors";
 import { getClusterTime } from "@/lib/solana";
 
@@ -47,13 +49,13 @@ beforeAll(async () => {
 describe("launch and fees", () => {
   it("launches a coin through the service and the reads show it with its Deed", async () => {
     const r = await svc.launchCoin(ctxFor(creator), { name: "Chalk Service", ticker: "CHSVC", description: "e2e", image: null, twitter: "", telegram: "" });
-    coinMint = r.coin.mint;
-    deedMint = r.coin.deedMint;
-    expect(r.coin.symbol).toBe("CHSVC");
-    expect(r.coin.name).toBe("Chalk Service");
-    expect(r.coin.creator).toBe(creator.publicKey.toBase58());
-    expect(r.coin.deedOwner).toBe(creator.publicKey.toBase58());
-    expect(r.coin.status).toBe("HELD");
+    coinMint = r.coin!.mint;
+    deedMint = r.coin!.deedMint;
+    expect(r.coin!.symbol).toBe("CHSVC");
+    expect(r.coin!.name).toBe("Chalk Service");
+    expect(r.coin!.creator).toBe(creator.publicKey.toBase58());
+    expect(r.coin!.deedOwner).toBe(creator.publicKey.toBase58());
+    expect(r.coin!.status).toBe("HELD");
     expect((await svc.listCoins()).map((c) => c.mint)).toContain(coinMint);
     const act = await svc.listActivity();
     expect(act.some((e) => e.kind === "COIN_LAUNCHED" && e.coinMint === coinMint)).toBe(true);
@@ -273,4 +275,68 @@ describe("OTC", () => {
     expect(friendlyError(new Error("Simulation failed.\nLogs:\n[ \"Program log: AnchorError thrown in x.rs:1. Error Code: BidTooLow. Error Number: 6021. Error Message: The bid is below the minimum next bid.\" ]"))).toBe("The bid is below the minimum next bid.");
     void getAssociatedTokenAddressSync;
   });
+});
+
+// ====================================================================== Pump-only launch, then upgrade to a Deed
+
+async function buyOnPump(coin: string, lamports: bigint) {
+  const trader = await wallet(40);
+  const sdk = new OnlinePumpSdk(conn);
+  const mint = new PublicKey(coin);
+  const [global, feeConfig] = await Promise.all([sdk.fetchGlobal(), sdk.fetchFeeConfig()]);
+  const st = await sdk.fetchBuyState(mint, trader.publicKey, TOKEN_2022_PROGRAM_ID);
+  const quoteAmount = new BN(lamports.toString());
+  const buy = await PUMP_SDK.buyExactQuoteInV3Instructions({
+    bondingCurve: st.bondingCurve,
+    associatedUserAccountInfo: st.associatedUserAccountInfo,
+    mint,
+    user: trader.publicKey,
+    quoteAmount,
+    amount: getBuyV3TokenAmountFromQuoteAmount({ global, feeConfig, mintSupply: st.bondingCurve.tokenTotalSupply, bondingCurve: st.bondingCurve, amount: quoteAmount, curveBaseTokenBalance: st.curveBaseTokenBalance }),
+    slippage: 5,
+    quoteTokenProgram: st.quoteTokenProgram,
+  });
+  await sendIxs(trader, [ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 }), ...buy]);
+}
+
+describe("launching without the Deed program, then upgrading", () => {
+  const store = new Map<string, string>();
+  const g = globalThis as unknown as { window?: unknown };
+  beforeAll(() => {
+    // the pending-launch record lives in localStorage in the browser; give Node a tiny one for this test
+    g.window = { localStorage: { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) } };
+  });
+  afterAll(() => {
+    delete g.window;
+  });
+
+  it("a pump-only coin earns the creator its fees directly, then upgrades to a Deed even after it has traded", async () => {
+    const maker = await wallet(60);
+    const r = await svc.launchCoin(ctxFor(maker), { name: "Pump Only", ticker: "PONLY", description: "", image: null, twitter: "", telegram: "", mode: "pump" });
+    expect(r.coin).toBeNull();
+    expect(r.symbol).toBe("PONLY");
+    const mint = new PublicKey(r.mint);
+    // exactly one thing was created on chain by us: the Pump coin. No Deed, no fee lock.
+    expect(await conn.getAccountInfo(deedStatePda(mint))).toBeNull();
+    expect(await conn.getAccountInfo(new PublicKey(feeSharingConfigPda(mint)))).toBeNull();
+    expect(loadPendingLaunches(maker.publicKey.toBase58()).map((p) => p.coinMint)).toContain(r.mint);
+
+    // it trades: the curve now holds creator fees for the creator. Pump refuses to set up fee sharing until they are swept,
+    // so the upgrade has to sweep first.
+    await buyOnPump(r.mint, 6n * SOL);
+
+    const up = await svc.launchCoin(ctxFor(maker), { name: "Pump Only", ticker: "PONLY", description: "", image: null, twitter: "", telegram: "", mode: "deed", resume: r.mint });
+    expect(up.coin).not.toBeNull();
+    expect(up.coin!.deedOwner).toBe(maker.publicKey.toBase58());
+    expect(loadPendingLaunches(maker.publicKey.toBase58()).map((p) => p.coinMint)).not.toContain(r.mint);
+
+    // from here on it behaves like any Deed coin: new trading fees reach the Deed holder through the vault
+    await buyOnPump(r.mint, 6n * SOL);
+    svc.invalidate();
+    const before = (await svc.listCoins()).find((c) => c.mint === r.mint)!;
+    expect(before.fees.unclaimed).toBeGreaterThan(0n);
+    const walletBefore = await bal(maker.publicKey);
+    await svc.claimFees(ctxFor(maker), r.mint);
+    expect(await bal(maker.publicKey)).toBeGreaterThan(walletBefore);
+  }, 120_000);
 });

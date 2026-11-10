@@ -51,7 +51,7 @@ describe("deed program on a validator with the real Pump programs", () => {
       { upload: async () => ({ uri: "https://example.com/coin.json", deedUri: "https://example.com/deed.json" }) },
     );
     coinMint = new PublicKey(out.coinMint);
-    deedMint = new PublicKey(out.deedMint);
+    deedMint = new PublicKey(out.deedMint!);
     expect(out.signatures.length).toBe(4);
     expect(steps).toHaveLength(4);
 

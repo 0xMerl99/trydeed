@@ -62,10 +62,24 @@ export interface LaunchInput {
   twitter: string;
   telegram: string;
   onStep?: (s: LaunchStep) => void;
+  /**
+   * "deed" (default): coin + fee lock + Deed, needs the Deed program deployed on this network.
+   * "pump": only the Pump.fun coin (one transaction): the wallet keeps the creator fees directly; works with nothing of ours deployed.
+   */
+  mode?: "deed" | "pump";
+  /** Mint of a coin this device already launched: continue / upgrade it instead of creating a new one. */
+  resume?: string;
 }
 export interface LaunchResult extends TxReceipt {
-  coin: Coin;
+  /** The coin with its Deed. `null` for a "pump" launch: the coin exists on Pump.fun but has no Deed yet. */
+  coin: Coin | null;
+  /** Always set: the coin that was launched. */
+  mint: Address;
+  name: string;
+  symbol: string;
 }
+/** Whether launching a Deed is possible on this network right now. */
+export type LaunchReadiness = { deed: true } | { deed: false; reason: string };
 
 export interface CreateAuctionInput {
   coinMint: Address;
@@ -108,6 +122,8 @@ export interface DeedService {
 
   // ---- auction + deed writes
   launchCoin(ctx: TxContext, input: LaunchInput): Promise<LaunchResult>;
+  /** Can a coin be launched WITH a Deed here, or only on Pump.fun for now? */
+  getLaunchReadiness(): Promise<LaunchReadiness>;
   createAuction(ctx: TxContext, input: CreateAuctionInput): Promise<TxReceipt & { auction: Address }>;
   placeBid(ctx: TxContext, input: PlaceBidInput): Promise<TxReceipt & { extended: boolean }>;
   cancelAuction(ctx: TxContext, auction: Address): Promise<TxReceipt>;

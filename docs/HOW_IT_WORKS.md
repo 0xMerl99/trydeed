@@ -81,6 +81,19 @@ What is for sale is **the fee rights, not the coin's token supply**. The app rep
 | 3 | **Mint the Deed** | Creates a Token-2022 mint with on-mint metadata, mints exactly one token to you, then **permanently revokes** the mint authority. The metadata is made immutable. |
 | 4 | **`register_deed`** (Deed program) | The program **verifies** (from Pump's and the token program's own account data) that the fee split is locked to the vault, that you are the coin's creator, and that the Deed is a true 1/1. Only then does it record the coin ↔ Deed link. |
 
+### Launching before the Deed program is live
+
+If the Deed program is **not** deployed (and initialised) on the network the app is pointed at, the Launch page says so and
+switches to a **Pump.fun-only launch**: one transaction that creates the coin on Pump.fun. It needs nothing of ours on chain.
+The wallet is the coin's creator and **earns its creator fees directly**, exactly as on pump.fun. What you do *not* get is
+a Deed, so there are no tradable fee rights and no auctions for that coin yet. The coin is remembered on that device; once
+the Deed program is live, the Launch page offers **Create its Deed** for it, which runs steps 2-4 above (and first sweeps any
+creator fees the coin's curve has collected since launch, because Pump will not change the fee split until they are swept;
+those earlier fees stay yours to collect on Pump.fun).
+
+The app **never** locks fees to a Deed vault unless the program is there to pay them out: a Deed launch refuses to start
+(before sending anything) on a network where the program is missing or uninitialised.
+
 Every step first checks the chain, so an interrupted launch (a rejected prompt, a closed tab) **resumes** instead of
 repeating anything: the launch page offers *Finish the launch*. Total cost is network fees plus about 0.01 SOL of account
 rent (the coin and Deed accounts, the registry entry, the vault's rent floor).
@@ -256,7 +269,7 @@ Finished offers no longer exist as accounts (their rent is returned); their hist
 | **Live Auctions** `/auctions` | Catalogue of live lots. | Sort chips (Ending Soon, Newest, Highest Bid, Highest Lifetime Fees, Most Bids, Ended), search by name/ticker/mint |
 | **Auction detail** `/auctions/…` | One lot: fees, bid history, and the **bid box** (current bid, minimum next bid, countdown, input, quick bids, escrow notes, seller/Deed/mint/fee facts). | *Place Bid*, *Settle Auction*, *cancel it* (seller, before first bid) |
 | **Coins** `/coins` | Every coin launched through Deed. Cards open the auction if it's on sale, otherwise a **details dialog**. | Sort (Newest, Market cap, Lifetime fees, On auction, Sold), search incl. creator |
-| **Launch** `/launch` | Create a coin: name, ticker, description, image (png/jpg/gif/webp ≤ 1.5 MB), X, Telegram. A live **Deed certificate preview** updates as you type. | *LAUNCH COIN* → four-step progress → success panel with mint, certificate and *Start Auction* |
+| **Launch** `/launch` | Create a coin: name, ticker, description, image (png/jpg/gif/webp ≤ 1.5 MB), X, Telegram. A live **Deed certificate preview** updates as you type. | *LAUNCH COIN* → four-step progress → success panel with mint, certificate and *Start Auction* (or, while the Deed program is not live: *LAUNCH ON PUMP.FUN*, one step) |
 | **Sell** `/sell` | 6-step wizard: Select Deed → Fee analytics (with **"Deed verified"**) → Starting bid → Duration → Summary → Start. | Wallet required |
 | **Portfolio** `/portfolio` | Summary tiles + tabs: My Deeds, My Coins, My Auctions, My Bids, Fees, Token holdings, History. | *Sell on Auction*, *Claim X SOL* |
 | **OTC Markets** `/otc` | Stats, search by name/symbol/**mint**, sortable markets table, recent trades. | *Open market*, *Wallet lookup* |
@@ -415,7 +428,7 @@ minute and feeds an offset, so `useNow()` returns **cluster-adjusted** time. Eve
 | `deed.wallet` | The wallet-adapter's remembered wallet |
 | `deed.watchlist` | Hearted coins and auctions |
 | `deed.nseen.<address>` | When you last read notifications (drives the bell badge) |
-| `deed.launch.<address>` | An unfinished launch (coin and Deed addresses only; **no keys**), so it can be resumed |
+| `deed.launches.<address>` | Coins this device launched that have no finished Deed yet (coin and Deed addresses only; **no keys**), so they can be upgraded or resumed |
 
 Storage can be blocked (private mode); every read/write is guarded and the app still renders.
 
@@ -465,7 +478,7 @@ Configuration is in `.env.local` (see `.env.example`): `NEXT_PUBLIC_SOLANA_CLUST
 | Pages say they couldn't load data | The public Solana RPC rate-limits or blocks browsers (and `getProgramAccounts`). Set `NEXT_PUBLIC_SOLANA_RPC_URL` to a dedicated endpoint. |
 | "The Deed program has not been initialised on this network" | Run `chain/scripts/initialize.mjs` once after deploying (see `chain/DEPLOY.md`). |
 | Launch fails with "Metadata hosting is not configured" | The server needs `PINATA_JWT` (image + metadata pinning). Nothing was created. |
-| A launch stopped halfway | Open **Launch**: *Finish the launch* resumes from the step that hasn't happened yet. Nothing is repeated. |
+| A launch stopped halfway, or a coin has no Deed yet | Open **Launch**: the list of your coins without a Deed offers *Create its Deed* / *Finish its Deed*, which resumes from the step that hasn't happened yet. Nothing is repeated. |
 | "The transaction expired" | The network was busy; nothing was spent. Try again, or raise `NEXT_PUBLIC_PRIORITY_FEE_MICROLAMPORTS`. |
 | Wallet button does nothing | No extension detected: install Phantom or Solflare and refresh. |
 | Unstyled page after a build | A build was interrupted. Re-run `npm run build` fully (don't pipe it into `head`). |

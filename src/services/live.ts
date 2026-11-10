@@ -10,9 +10,9 @@ import { DeedRuleError } from "@/lib/errors";
 import { ChainReader } from "@/chain/read";
 import { resetEventCache } from "@/chain/events";
 import { PROGRAM_ID } from "@/chain/program";
-import { launch, type LaunchDeps } from "@/chain/launch";
+import { launch, programReadiness, type LaunchDeps } from "@/chain/launch";
 import * as w from "@/chain/writes";
-import type { CloseReason, CreateAuctionInput, CreateOfferInput, DeedService, FillOfferInput, LaunchInput, LaunchResult, PlaceBidInput, TxContext, TxReceipt } from "./types";
+import type { CloseReason, CreateAuctionInput, CreateOfferInput, DeedService, FillOfferInput, LaunchInput, LaunchReadiness, LaunchResult, PlaceBidInput, TxContext, TxReceipt } from "./types";
 import type { PlatformStatus, WalletTokens } from "@/types";
 
 const durationSecs = (k: DurationKey) => DURATIONS.find((d) => d.key === k)!.secs;
@@ -62,11 +62,21 @@ export class LiveDeedService implements DeedService {
   listActivity = () => this.reader.activity();
   getPortfolio = (wallet: string) => this.reader.portfolio(wallet);
 
+  async getLaunchReadiness(): Promise<LaunchReadiness> {
+    const r = await programReadiness(getConnection());
+    return r.ready ? { deed: true } : { deed: false, reason: r.message };
+  }
+
   async launchCoin(ctx: TxContext, input: LaunchInput): Promise<LaunchResult> {
     const out = await this.after(launch(ctx, input, this.opts.launchDeps));
+    const signature = out.signatures[out.signatures.length - 1] ?? "";
+    const base = { signature, mint: out.coinMint, name: input.name.trim(), symbol: input.ticker.trim() };
+    if (!out.deedMint) {
+      return { ...base, coin: null, message: `${base.symbol} is live on Pump.fun. You earn its creator fees directly; turn it into a Deed whenever Deed is live.` };
+    }
     const coin = (await this.reader.coins()).find((c) => c.mint === out.coinMint);
     if (!coin) throw new Error("The coin was launched but could not be read back yet. Refresh in a few seconds.");
-    return { signature: out.signatures[out.signatures.length - 1] ?? "", message: `${coin.symbol} launched. Its Deed is in your wallet.`, coin };
+    return { ...base, name: coin.name, symbol: coin.symbol, coin, message: `${coin.symbol} launched. Its Deed is in your wallet.` };
   }
 
   async createAuction(ctx: TxContext, input: CreateAuctionInput): Promise<TxReceipt & { auction: string }> {

@@ -3,6 +3,19 @@
 Everything in Deed is real: there is no simulation. This page says exactly what that rests on, what has and has not
 been verified, the trust assumptions, and what only *you* can do (deploy, fund, audit).
 
+## What works with nothing of ours deployed
+
+| | Without the Deed program on the network | With it |
+| --- | --- | --- |
+| **Launch a coin** | Yes: a Pump.fun-only launch (one transaction). The creator earns the creator fees directly. | Yes, with a Deed (four transactions) |
+| Deed, fee rights for sale, auctions | No | Yes |
+| OTC trading | No (it is escrowed by the program) | Yes |
+| Reading anything | Pages are empty | Live |
+
+So a launch needs only Pump.fun's existing mainnet programs, an RPC and the pinning key; it does not need you to deploy
+anything. The Deed program is what turns a launched coin into an ownable, sellable asset, and a coin launched earlier can be
+upgraded to a Deed afterwards (verified on the local validator, including a coin that had already traded).
+
 ## What the app talks to
 
 | Piece | What it is | Status |

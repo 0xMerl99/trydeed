@@ -19,7 +19,7 @@ import { airdrop, conn, ctxFor, ensureInitialised, sendIxs, sleep, wallet } from
 import { LiveDeedService } from "@/services/live";
 import * as w from "@/chain/writes";
 import { decodeDeedState } from "@/chain/accounts";
-import { deedStatePda } from "@/chain/program";
+import { PROGRAM_ID, deedStatePda } from "@/chain/program";
 
 const PORT = 3101;
 const BASE = `http://localhost:${PORT}`;
@@ -180,7 +180,7 @@ describe("the real UI against the real chain", () => {
   it("bidding: the UI enforces the minimum, an outbid wallet is refunded with no claim step, and the winner settles in the UI", async () => {
     // a coin + Deed held by a script wallet, on a 40 s auction (the test build allows short auctions)
     const out = await svc.launchCoin(ctxFor(creator), { name: "Chalk Lot", ticker: "LOT", description: "", image: null, twitter: "", telegram: "" });
-    const r = await w.createAuction(ctxFor(creator), out.coin.mint, SOL / 2n, 40);
+    const r = await w.createAuction(ctxFor(creator), out.coin!.mint, SOL / 2n, 40);
     const { page, errors } = await newPage();
     await page.goto(`${BASE}/auctions/${r.auction}`, { waitUntil: "load" });
     await connect(page);
@@ -212,6 +212,46 @@ describe("the real UI against the real chain", () => {
     expect(errors).toEqual([]);
     await page.context().close();
   }, 300_000);
+
+  it("with no Deed program on the network, a coin can still be launched on Pump.fun (one transaction, no Deed, no fee lock)", async () => {
+    const { page, errors } = await newPage();
+    // Make the page see the network as one where the Deed program does not exist. Only that one answer is replaced;
+    // everything else, including the launch transaction itself, goes to the real validator.
+    await page.route("http://127.0.0.1:8899/**", async (route) => {
+      const body = route.request().postData() ?? "";
+      try {
+        const msg = JSON.parse(body);
+        if (!Array.isArray(msg) && msg.method === "getAccountInfo" && msg.params?.[0] === PROGRAM_ID.toBase58()) {
+          return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: { context: { slot: 1 }, value: null } }) });
+        }
+      } catch {
+        /* not JSON: pass through */
+      }
+      return route.continue();
+    });
+    await page.goto(BASE + "/launch", { waitUntil: "load" });
+    await connect(page);
+    await page.getByTestId("pump-only-notice").waitFor({ timeout: 30_000 });
+    expect(await page.getByTestId("launch-submit").innerText()).toMatch(/LAUNCH ON PUMP\.FUN/i);
+    await page.locator("#ln").fill("Pump Only UI");
+    await page.locator("#lt").fill("PONLYUI");
+    await page.locator("#li").setInputFiles({ name: "c.png", mimeType: "image/png", buffer: PNG });
+    await page.getByTestId("launch-submit").click();
+    await page.getByTestId("launch-success").waitFor({ timeout: 90_000 });
+    const text = await page.getByTestId("launch-success").innerText();
+    expect(text).toMatch(/Open on Pump\.fun/);
+    expect(text).toMatch(/don.t have a Deed/i);
+    const mint = (await page.getByTestId("launch-success").locator(".mono").first().innerText()).match(/[1-9A-HJ-NP-Za-km-z]{32,44}/)![0];
+    // the real coin exists on chain, and nothing of the Deed program was touched
+    expect(await conn.getAccountInfo(new PublicKey(mint))).not.toBeNull();
+    expect(await conn.getAccountInfo(deedStatePda(new PublicKey(mint)))).toBeNull();
+    // it is remembered so it can be upgraded later
+    await page.goto(BASE + "/launch", { waitUntil: "load" });
+    await page.getByTestId("resume-launch").waitFor({ timeout: 30_000 });
+    expect(await page.getByTestId("resume-launch").innerText()).toMatch(/once Deed is live/i);
+    expect(errors).toEqual([]);
+    await page.context().close();
+  }, 200_000);
 
   it("no page, anywhere, talks about a simulation", async () => {
     const { page } = await newPage();

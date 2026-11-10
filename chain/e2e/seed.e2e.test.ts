@@ -19,7 +19,7 @@ describe("seed", () => {
     const [creator, alice, bob] = await Promise.all([wallet(200), wallet(200), wallet(200)]);
     const coin = await svc.launchCoin(ctxFor(creator), { name: "Paper Crown", ticker: "CROWN", description: "seed coin", image: null, twitter: "", telegram: "" });
     await svc.launchCoin(ctxFor(creator), { name: "Brass Key", ticker: "KEY", description: "seed coin", image: null, twitter: "", telegram: "" });
-    const a = await w.createAuction(ctxFor(creator), coin.coin.mint, 2n * SOL, 7 * 24 * 3600);
+    const a = await w.createAuction(ctxFor(creator), coin.coin!.mint, 2n * SOL, 7 * 24 * 3600);
     await svc.placeBid(ctxFor(alice), { auction: a.auction, amount: 2n * SOL });
     await svc.placeBid(ctxFor(bob), { auction: a.auction, amount: 2n * SOL + 200_000_000n });
 

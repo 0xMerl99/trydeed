@@ -7,6 +7,7 @@ import { NetworkGuard } from "@/components/layout/NetworkGuard";
 import { Ticker } from "@/components/layout/Ticker";
 import { AppProviders } from "@/components/providers/AppProviders";
 import { config } from "@/lib/config";
+import { X_HANDLE } from "@/lib/social";
 
 // Chalkboard type. Headlines: chalk lettering. Body: a readable hand. Numbers: monospaced, so amounts never jump width.
 const fred = Fredericka_the_Great({ subsets: ["latin"], weight: "400", variable: "--font-fred", display: "swap" });
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
   description:
     "Launch a coin. Receive the Deed. Auction the rights. Deed is the ownership layer for coins launched on Pump.fun: a unique 1/1 Ownership NFT that controls 100% of a coin’s creator fees.",
   openGraph: { title: "Deed — Own the fees.", description: "Launch a coin. Receive the Deed. Auction the rights.", siteName: "Deed", type: "website" },
-  twitter: { card: "summary_large_image", title: "Deed — Own the fees.", description: "Launch a coin. Receive the Deed. Auction the rights." },
+  twitter: { card: "summary_large_image", site: X_HANDLE, creator: X_HANDLE, title: "Deed — Own the fees.", description: "Launch a coin. Receive the Deed. Auction the rights." },
 };
 
 export const viewport: Viewport = { themeColor: "#131e18", width: "device-width", initialScale: 1, viewportFit: "cover" };

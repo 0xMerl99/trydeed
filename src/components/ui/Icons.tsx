@@ -28,3 +28,9 @@ export const ShieldIcon = ({ size, ...p }: P) => (<svg {...base(size)} {...p}><p
 export const ChevronDownIcon = ({ size, ...p }: P) => (<svg {...base(size)} {...p}><path d="m6 9 6 6 6-6" /></svg>);
 export const UploadIcon = ({ size, ...p }: P) => (<svg {...base(size)} {...p}><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg>);
 export const LinkIcon = ({ size, ...p }: P) => (<svg {...base(size)} {...p}><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 11 18.7l1-1" /></svg>);
+/** The X logo (filled). */
+export const XIcon = ({ size = 18, ...p }: P) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...p}>
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+  </svg>
+);

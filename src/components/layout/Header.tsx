@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { BellIcon, MenuIcon } from "@/components/ui/Icons";
+import { BellIcon, MenuIcon, XIcon } from "@/components/ui/Icons";
+import { X_URL } from "@/lib/social";
 import { Logo } from "@/components/ui/Logo";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { useDeedWallet } from "@/components/wallet/DeedWallet";
@@ -62,6 +63,17 @@ export function Header() {
             <HeaderSearch className="hidden w-full min-w-[150px] max-w-[260px] w1200:flex" />
           </Suspense>
           <Bell />
+          <a
+            href={X_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Deed on X (opens in a new tab)"
+            title="Follow Deed on X"
+            className="hidden h-10 w-10 shrink-0 place-items-center rounded-[10px] border border-line bg-field text-ink no-underline hover:border-ink w640:grid"
+            data-testid="x-link"
+          >
+            <XIcon size={16} />
+          </a>
           <ConnectButton />
           <button
             type="button"

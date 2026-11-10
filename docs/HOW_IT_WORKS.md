@@ -283,7 +283,7 @@ Finished offers no longer exist as accounts (their rent is returned); their hist
 Market cap is shown **in SOL**, computed from Pump's bonding-curve reserves, because a USD figure would need a price feed
 this app doesn't invent. "Recently sold" and the activity feed come from the program's recent events (see §9).
 
-**Header & chrome.** Search (typing goes to `/coins?q=…`), notification bell (when connected), the wallet button, and a
+**Header & chrome.** Search (typing goes to `/coins?q=…`), notification bell (when connected), the X link (@trydeedfun), the wallet button, and a
 ticker of recent events with the **total creator fees** pinned right. Below 1200 px the nav becomes a slide-over **menu**.
 The watch hearts on cards save to your browser only.
 

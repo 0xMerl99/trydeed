@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useEffect, useRef } from "react";
-import { CloseIcon } from "@/components/ui/Icons";
+import { CloseIcon, XIcon } from "@/components/ui/Icons";
+import { X_URL } from "@/lib/social";
 import { Logo } from "@/components/ui/Logo";
 import { HeaderSearch } from "./HeaderSearch";
 import { NAV } from "./nav";
@@ -62,6 +63,14 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
             );
           })}
         </nav>
+        <a
+          href={X_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mx-3 mb-4 flex min-h-12 items-center gap-3 rounded-xl border border-line px-4 text-base font-semibold text-ink no-underline hover:bg-stone [margin-bottom:max(16px,env(safe-area-inset-bottom))]"
+        >
+          <XIcon size={16} /> Follow Deed on X
+        </a>
       </div>
     </dialog>
   );

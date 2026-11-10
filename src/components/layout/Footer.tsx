@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { LogoMark, Wordmark } from "@/components/ui/Logo";
+import { XIcon } from "@/components/ui/Icons";
+import { X_URL } from "@/lib/social";
 import { NetworkTag } from "./NetworkGuard";
 import { AddressLink } from "@/components/ui/Explorer";
 import idl from "@/chain/idl/deed_fun.json";
@@ -29,6 +31,9 @@ export function Footer() {
           <Link href="/otc" className={link}>OTC Markets</Link>
           <Link href="/activity" className={link}>Activity</Link>
           <Link href="/docs" className={link}>Docs</Link>
+          <a href={X_URL} target="_blank" rel="noopener noreferrer" className={`${link} inline-flex items-center gap-1.5`} aria-label="Deed on X (opens in a new tab)">
+            <XIcon size={13} /> X
+          </a>
           <span className="text-ink"><NetworkTag /></span>
         </nav>
       </div>

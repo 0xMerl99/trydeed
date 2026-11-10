@@ -1,0 +1,29 @@
+node_modules
+.next
+out
+next-env.d.ts
+*.tsbuildinfo
+.env.local
+.env*.local
+qa-output
+
+# on-chain program
+chain/keys/
+chain/target-out/
+chain/fixtures/
+chain/scripts/*.log
+chain/ledger/
+chain/e2e/.out/
+.next-qa
+.next-*
+
+# secrets and local state: never commit
+.env
+.env.*
+!.env.example
+*.pem
+*keypair*.json
+id.json
+admin.json
+*.log
+.DS_Store

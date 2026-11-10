@@ -1,0 +1,25 @@
+# Render Blueprint for the Deed web app (the Next.js front end). The Solana program is deployed separately: see chain/DEPLOY.md.
+# NEXT_PUBLIC_* values are inlined at BUILD time, so set them before the first deploy (and redeploy after changing them).
+services:
+  - type: web
+    name: deed
+    runtime: node
+    plan: starter            # the free 512 MB plan can run out of memory while building Next.js; use starter if the build is killed
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEXT_PUBLIC_SOLANA_CLUSTER
+        value: mainnet-beta
+      - key: NEXT_PUBLIC_SOLANA_RPC_URL     # a DEDICATED RPC (Helius, QuickNode, Triton...): the public endpoint blocks the app's queries
+        sync: false
+      - key: NEXT_PUBLIC_SITE_URL           # your public URL, e.g. https://deed.onrender.com or your own domain
+        sync: false
+      - key: NEXT_PUBLIC_IPFS_GATEWAY
+        value: https://ipfs.io/ipfs
+      - key: NEXT_PUBLIC_PRIORITY_FEE_MICROLAMPORTS
+        value: "20000"
+      - key: PINATA_JWT                     # server-only secret used by /api/metadata to pin coin images and metadata
+        sync: false

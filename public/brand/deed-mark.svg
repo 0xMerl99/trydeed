@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 30" width="160" height="120" fill="none">
+  <title>Deed mark</title>
+  <rect x="1" y="1" width="38" height="28" rx="3" fill="#F5F5F4" stroke="#0A0A0A" stroke-width="2"/>
+  <rect x="4.5" y="4.5" width="31" height="21" rx="1.5" stroke="#D4A017" stroke-width="1"/>
+  <path d="M9 10h14M9 14.2h10M9 18.4h7" stroke="#0A0A0A" stroke-width="1.6" stroke-linecap="round"/>
+  <circle cx="29.5" cy="19" r="4.3" fill="#D4A017"/>
+  <circle cx="29.5" cy="19" r="2.3" stroke="#0A0A0A" stroke-width="1"/>
+</svg>

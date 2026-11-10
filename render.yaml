@@ -4,11 +4,13 @@ services:
   - type: web
     name: deed
     runtime: node
-    plan: starter            # the free 512 MB plan can run out of memory while building Next.js; use starter if the build is killed
+    plan: standard           # `next build` needs about 1.3 GB of RAM (measured). The 512 MB plans (free/starter) will have the build killed.
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /
     envVars:
+      - key: NEXT_BUILD_CPUS                # caps build workers (each one costs memory); raise it only on a bigger plan
+        value: "1"
       - key: NODE_VERSION
         value: "22"
       - key: NEXT_PUBLIC_SOLANA_CLUSTER

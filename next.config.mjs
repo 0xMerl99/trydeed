@@ -3,6 +3,8 @@ const nextConfig = {
   // A second server (the browser QA suite) needs its own build directory next to the developer's: NEXT_DIST_DIR=.next-qa
   distDir: process.env.NEXT_DIST_DIR || ".next",
   reactStrictMode: true,
+  // Static generation forks one worker per CPU. On a small host (Render) that multiplies memory use, so cap it.
+  experimental: { cpus: Number(process.env.NEXT_BUILD_CPUS) || 2 },
   poweredByHeader: false,
   // Anchor's ESM build touches `exports` when evaluated on the server; load it as the CommonJS package it ships as.
   serverExternalPackages: ["@coral-xyz/anchor"],

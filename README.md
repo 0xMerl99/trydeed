@@ -43,7 +43,8 @@ refused by the chain. To try the whole thing locally with test funds, use the lo
 ## Hosting on Render
 
 The repo includes a Render Blueprint ([`render.yaml`](render.yaml)): New → Blueprint → pick this repo. It builds with
-`npm ci --include=dev && npm run build` and starts with `npm start`. Set these when prompted (the `NEXT_PUBLIC_*` ones are baked
+`npm ci --include=dev && npm run build` and starts with `npm start`. **Use a plan with at least 2 GB of RAM** (the blueprint
+says `standard`): `next build` needs about 1.3 GB, so the 512 MB plans get the build killed. Set these when prompted (the `NEXT_PUBLIC_*` ones are baked
 in at build time, so redeploy after changing them): `NEXT_PUBLIC_SOLANA_RPC_URL` (a dedicated RPC), `NEXT_PUBLIC_SITE_URL`,
 and the server-only `PINATA_JWT`. This hosts the **web app**; the Solana program is deployed separately
 ([chain/DEPLOY.md](chain/DEPLOY.md)), and the app shows empty pages until it is.
